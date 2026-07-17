@@ -460,7 +460,15 @@ function showLoginScreen(){
   document.getElementById("login").style.display="flex";
   document.getElementById("portada").style.display="none";
   document.getElementById("app").style.display="none";
-  setTimeout(()=>document.getElementById("lEmail").focus(),100);
+  // Bind login button every time (avoids duplicate listeners with flag)
+  var btn = document.getElementById("lBtn");
+  var pass = document.getElementById("lPass");
+  if(!btn._bound){
+    btn._bound = true;
+    btn.addEventListener("click", doLogin);
+    pass.addEventListener("keydown", function(e){ if(e.key==="Enter") doLogin(); });
+  }
+  setTimeout(function(){ document.getElementById("lEmail").focus(); }, 100);
 }
 
 async function doLogin(){
@@ -482,7 +490,16 @@ async function doLogin(){
     showPortada();
     await auditLog("auth","—","LOGIN",`Inicio de sesión: ${currentUser.email}`,{});
   } catch(e){
-    errEl.textContent = e.message==="Invalid login credentials" ? "Correo o contraseña incorrectos." : "Error de conexión. Intenta de nuevo.";
+    const msg = e.message || String(e);
+    if(msg.includes("Invalid login credentials") || msg.includes("invalid_credentials")){
+      errEl.textContent = "Correo o contraseña incorrectos.";
+    } else if(msg.includes("Email not confirmed")){
+      errEl.textContent = "Debes confirmar tu correo. Revisa tu bandeja de entrada o desactiva la confirmación en Supabase → Authentication → Settings.";
+    } else if(msg.includes("Failed to fetch") || msg.includes("NetworkError")){
+      errEl.textContent = "Error de conexión. Verifica tu internet e intenta de nuevo.";
+    } else {
+      errEl.textContent = "Error: " + msg;
+    }
   } finally { btn.disabled=false; btn.textContent="Entrar"; }
 }
 
@@ -641,9 +658,6 @@ function bindOnce(){
   document.getElementById("exportBtn").addEventListener("click",exportCSV);
   document.getElementById("ca").addEventListener("click",handleContent);
   document.getElementById("ca").addEventListener("change",handleContentChange);
-  // Login
-  document.getElementById("lBtn").addEventListener("click",doLogin);
-  document.getElementById("lPass").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
 }
 function closeSb(){document.getElementById("sidebar").classList.remove("op");document.getElementById("scrim").classList.remove("sh");}
 
